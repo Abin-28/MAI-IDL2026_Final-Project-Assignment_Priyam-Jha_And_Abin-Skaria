@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch.optim as optim
 from data import get_loaders
 import models
+from sklearn.metrics import f1_score, precision_score, recall_score  # FEATURE 6
 from fit import Trainer
 
 def main():   
@@ -160,6 +161,33 @@ def main():
         for images, _ in test_loader:
             model(images.to(device))
     latency_ms = (time.time() - lat_start) / len(test_loader.dataset) * 1000  # FEATURE 5
+
+    # FEATURE 6: Previously, only accuracy was reported, which is insufficient for
+    # the REPORT.md benchmark table that requires precision, recall, and macro F1.
+
+    # Change: Run a second pass over the test set to collect all predictions and
+    # ground-truth labels, then compute macro F1, precision, and recall with sklearn.
+
+    # Effect: All four required metrics are available for every dataset-model
+    # permutation, satisfying the consolidated benchmark report requirements.
+
+    all_preds, all_labels = [], []  # FEATURE 6
+    model.eval()
+    with torch.no_grad():
+        for images, labels in test_loader:
+            preds = model(images.to(device)).argmax(dim=1).cpu().tolist()
+            all_preds.extend(preds)
+            all_labels.extend(labels.tolist())
+    test_f1 = f1_score(all_labels, all_preds, average="macro")  # FEATURE 6
+    test_precision = precision_score(all_labels, all_preds, average="macro", zero_division=0)  # FEATURE 6
+    test_recall = recall_score(all_labels, all_preds, average="macro", zero_division=0)  # FEATURE 6
+
+    print(
+        f"[RESULT] dataset={config['DATA']} | model={config['MODEL']} | "
+        f"test_acc={test_acc/100:.4f} | test_f1={test_f1:.4f} | "
+        f"val_loss={best_val_loss:.4f} | train_time={train_time:.2f}s | "
+        f"latency={latency_ms:.4f} ms/sample"
+    )
 
 if __name__ == "__main__":
     main()
