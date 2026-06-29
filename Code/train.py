@@ -32,7 +32,20 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training executing on device: {device}")
 
-    train_loader, val_loader, _ = get_loaders(data=config["DATA"], data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
+    # BUGFIX 18: Previously, the third return value of get_loaders() was discarded
+    # with _, so the test set was never evaluated after training completed.
+    #
+    # Change: Replaced _ with test_loader in the unpack, then called
+    # trainer.evaluate(test_loader) after fit() to report test loss and accuracy.
+    #
+    # Effect: The complete train → validate → test pipeline now runs end-to-end,
+    # making test accuracy visible and verifiable against the assignment thresholds.
+
+    train_loader, val_loader, test_loader = get_loaders(    # BUGFIX 18
+        data=config["DATA"],
+        data_path=config["DATA_PATH"],
+        batch_size=config["BATCH_SIZE"]
+    )
 
     model_class = getattr(models, config["MODEL"])
     
@@ -67,6 +80,8 @@ def main():
 
     trainer = Trainer(model, criterion, optimizer, device)
     trainer.fit(train_loader, val_loader, epochs=config["EPOCHS"])
+    
+    trainer.evaluate(test_loader) # BUGFIX 18
 
 if __name__ == "__main__":
     main()
