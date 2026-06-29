@@ -117,8 +117,21 @@ class AlexNet(nn.Module):
 
         num_classes = kwargs.get("num_classes", 11)  # BUGFIX 4
         
+        # BUGFIX 12: Previously, the first Conv2d in AlexNet hardcoded 3 input channels,
+        # meaning AlexNet always assumed RGB input regardless of what the config specified.
+        # The in_channels value passed from train.py was silently swallowed by **kwargs
+        # and never used, making AlexNet inconsistent with VGG16 and ResNet18.
+
+        # Change: Extract in_channels from kwargs with a default of 3 (standard RGB),
+        # and pass it to the first Conv2d layer instead of the hardcoded value.
+
+        # Effect: AlexNet now respects the in_channels setting from config, making all
+        # three models consistent in how they handle the input channel dimension.
+            
+        in_channels = kwargs.get("in_channels", 3)  # BUGFIX 12 
+        
         self.features = nn.Sequential(
-            nn.Conv2d(3, 48, kernel_size=7, stride=2, padding=3),
+            nn.Conv2d(in_channels, 48, kernel_size=7, stride=2, padding=3), # BUGFIX 12
             nn.BatchNorm2d(48),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
