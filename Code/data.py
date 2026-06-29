@@ -14,9 +14,22 @@ def get_loaders(data, data_path, batch_size, val_split=0.1):
     total_samples = data_dict['train_images'].shape[0]
     val_size = int(total_samples * val_split)
     val_start = total_samples - val_size
+    
+    # BUGFIX 1: Previously, train_data was assigned the full train_images tensor,
+    # meaning the validation samples (the last val_size rows) were also part of
+    # the training set — the model trained and evaluated on the same data points.
 
-    train_data = data_dict['train_images']
-    train_labels = data_dict['train_labels']
+    # Change: Sliced train_data and train_labels to [:val_start] so the training
+    # set only contains indices 0 → val_start, and the validation set contains
+    # indices val_start → N with zero overlap between the two.
+
+    # Effect: Eliminates data leakage between the train and validation splits.
+    # Validation metrics now measure true generalisation on genuinely unseen
+    # samples instead of reflecting memorised training data.
+
+    train_data = data_dict['train_images'][:val_start]  # BUGFIX 1
+    train_labels = data_dict['train_labels'][:val_start]  # BUGFIX 1
+
     val_data = data_dict['train_images'][val_start:]
     val_labels = data_dict['train_labels'][val_start:]
     
