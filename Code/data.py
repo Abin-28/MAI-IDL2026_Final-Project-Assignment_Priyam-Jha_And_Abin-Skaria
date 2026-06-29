@@ -8,7 +8,17 @@ from pathlib import Path
 from torch.utils.data import TensorDataset, DataLoader
 
 def get_loaders(data, data_path, batch_size, val_split=0.1):
-    d_path = Path(data_path) / f"{data}_data.pt"
+
+    # BUGFIX 2: Previously, the path was built with f"{data}_data.pt" which does not
+    # match the actual restored dataset filenames on disk (e.g. cells.pt, chest.pt).
+
+    # Change: Build the path using f"{data}.pt" to match the actual file names
+    # of the recovered datasets stored in the data directory.
+
+    # Effect: get_loaders() can now find and open the dataset files correctly,
+    # allowing training and evaluation to run instead of failing with FileNotFoundError.
+
+    d_path = Path(data_path) / f"{data}.pt" # BUGFIX 2
     data_dict = torch.load(d_path)
 
     total_samples = data_dict['train_images'].shape[0]
