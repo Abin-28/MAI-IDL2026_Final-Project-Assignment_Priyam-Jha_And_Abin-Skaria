@@ -17,9 +17,10 @@ import models
 from sklearn.metrics import f1_score, precision_score, recall_score  # FEATURE 6
 from fit import Trainer
 
-def main():   
-    with open("config.json", "r") as f:
-        config = json.load(f)
+def main(config=None):  # FEATURE 7
+    if config is None:  # FEATURE 7
+        with open("config.json", "r") as f:
+            config = json.load(f)
         
     # FEATURE 1: Previously, no random seed was set, causing non-deterministic
     # results across runs with identical hyperparameters, making benchmarks
@@ -144,7 +145,7 @@ def main():
     
     train_time = time.time() - t_start  # FEATURE 2
     
-    trainer.evaluate(test_loader) # BUGFIX 18
+    test_loss, test_acc = trainer.evaluate(test_loader)  # BUGFIX 18 # FEATURE 7
 
     # FEATURE 5: Previously, no per-sample inference latency was measured, making
     # it impossible to compare model efficiency for the Green Initiative report.
@@ -188,6 +189,28 @@ def main():
         f"val_loss={best_val_loss:.4f} | train_time={train_time:.2f}s | "
         f"latency={latency_ms:.4f} ms/sample"
     )
+
+    # FEATURE 7: Previously, main() had no return value, so runner.py could not
+    # collect metrics directly and had to resort to subprocess JSON parsing.
+
+    # Change: Added config=None default parameter to main() and a metrics dictionary
+    # return so runner.py can call main() directly and read results in-process.
+
+    # Effect: runner.py integration is clean and efficient with no subprocess
+    # overhead or fragile stdout parsing required.
+
+    return {   # FEATURE 7
+        "test_loss":       round(test_loss, 4),
+        "test_acc":        round(test_acc / 100, 4),
+        "test_f1":         round(test_f1, 4),
+        "val_loss":        round(best_val_loss, 4),
+        "train_time_s":    round(train_time, 2),
+        "latency_ms":      round(latency_ms, 4),
+        "test_precision":  round(test_precision, 4),
+        "test_recall":     round(test_recall, 4),
+        "peak_mem_mb":     round(peak_mem_mb, 2),
+        "checkpoint_path": checkpoint_path,    # FEATURE 3
+    }
 
 if __name__ == "__main__":
     main()
