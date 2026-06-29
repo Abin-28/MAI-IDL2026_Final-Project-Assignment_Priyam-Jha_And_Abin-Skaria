@@ -32,11 +32,21 @@ def main():
     # Effect: Dropout rate is now config-driven with a sensible value, allowing
     # the models to train and learn correctly.
     
+    # BUGFIX 11: Previously, activation_str=None was passed as a kwarg but models.py
+    # reads kwargs.get("activation", "ReLU") — the mismatched key meant the passed
+    # value was silently ignored and activation could never be set via the model call.
+    #
+    # Change: Removed the incorrect activation_str=None kwarg — the activation is
+    # now controlled via config["ACTIVATION"] passed through **config or explicitly.
+    #
+    # Effect: The kwarg key now matches what the model expects, making activation
+    # fully configurable via the config file.
+    
     model = model_class(
     in_channels=config["CHANNELS"],
     num_classes=config["NUM_CLASSES"],
     drop_rate=config["DROP_RATE"], # BUGFIX 10
-    activation_str=None
+    activation=config["ACTIVATION"] # BUGFIX 11
     ).to(device) 
     
     criterion = nn.CrossEntropyLoss()
