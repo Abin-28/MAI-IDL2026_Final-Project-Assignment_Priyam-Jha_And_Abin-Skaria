@@ -43,9 +43,33 @@ def get_loaders(data, data_path, batch_size, val_split=0.1):
     val_data = data_dict['train_images'][val_start:]
     val_labels = data_dict['train_labels'][val_start:]
     
+    # BUGFIX 3: Previously, raw pixel tensors in range [0, 255] were passed directly
+    # into the network with no normalisation, causing unstable training across all
+    # models and datasets.
+
+    # Change: Rescaled all splits to [0, 1] by dividing by 255.0, then standardised
+    # using the mean and std computed exclusively from the training set.
+    # Added .clamp(min=1e-8) to the std computation so the denominator is never zero, 
+    # making normalisation safe for any dataset
+    # Mean and std are computed per-channel across (N, H, W) dimensions.
+
+    # Effect: Inputs are zero-centred with unit variance based on the actual training
+    # distribution, stabilising training and allowing all three models to converge.
+
+    train_data = train_data / 255.0 # BUGFIX 3
+    val_data   = val_data   / 255.0 # BUGFIX 3
+    test_data  = data_dict['test_images'] / 255.0 # BUGFIX 3
+
+    mean = train_data.mean(dim=[0, 2, 3], keepdim=True) # BUGFIX 3
+    std  = train_data.std(dim=[0, 2, 3], keepdim=True).clamp(min=1e-8) # BUGFIX 3
+
+    train_data = (train_data - mean) / std # BUGFIX 3
+    val_data   = (val_data   - mean) / std # BUGFIX 3
+    test_data  = (test_data  - mean) / std # BUGFIX 3
+    
     train_dataset = TensorDataset(train_data, train_labels)
     val_dataset = TensorDataset(val_data, val_labels)
-    test_dataset = TensorDataset(data_dict['test_images'], data_dict['test_labels'])
+    test_dataset = TensorDataset(test_data, data_dict['test_labels']) # BUGFIX 3
     
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
