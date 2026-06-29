@@ -3,6 +3,7 @@ MAI/IDL SS26 - Final assignment.
 
 MG 6/6/2026
 """
+import sys  # FEATURE 8
 import torch
 
 class Trainer:
@@ -75,17 +76,37 @@ class Trainer:
                 
         return running_loss / total, (correct / total) * 100
 
-    def fit(self, train_loader, val_loader, epochs):
-        print("\n Starting Training Routine...")
-        print("-" * 50)
+    def fit(self, train_loader, val_loader, epochs, checkpoint_path=None):  # FEATURE 8
+        print("\n Starting Training Routine...", file=sys.stderr)  # FEATURE 8
+        print("-" * 50, file=sys.stderr)  # FEATURE 8
+
+        # FEATURE 8: Previously, fit() had no checkpoint saving, so the best-epoch
+        # weights were never persisted to disk and were lost after training completed.
+
+        # Change: Added an optional checkpoint_path=None argument to fit(), tracked
+        # the best validation loss across epochs, and saved self.model.state_dict()
+        # to checkpoint_path whenever a new best is found.
+
+        # Effect: The best-performing model weights are written to disk during training,
+        # making them available for transfer learning and later evaluation without
+        # retraining from scratch.
+
+        best_val_loss = float("inf")  # FEATURE 8
         
         for epoch in range(epochs):
             train_loss, train_acc = self.train_one_epoch(train_loader)
             val_loss, val_acc = self.evaluate(val_loader)
+
+            if val_loss < best_val_loss:  # FEATURE 8
+                best_val_loss = val_loss   # FEATURE 8
+                if checkpoint_path is not None: # FEATURE 8
+                    torch.save(self.model.state_dict(), checkpoint_path) # FEATURE 8
             
             print(f"Epoch [{epoch+1:02d}/{epochs:02d}] | "
                   f"Train Loss: {train_loss:.4f} - Train Acc: {train_acc:.2f}% | "
-                  f"Val Loss: {val_loss:.4f} - Val Acc: {val_acc:.2f}%")
+                  f"Val Loss: {val_loss:.4f} - Val Acc: {val_acc:.2f}%",
+                  file=sys.stderr, flush=True)  # FEATURE 8
         
-        print("-" * 50)
-        print("Training Complete!")
+        print("-" * 50, file=sys.stderr)  # FEATURE 8
+        print("Training Complete!", file=sys.stderr)  # FEATURE 8
+        return best_val_loss  # FEATURE 8
