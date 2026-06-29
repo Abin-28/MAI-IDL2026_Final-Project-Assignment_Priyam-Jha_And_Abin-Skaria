@@ -38,10 +38,20 @@ def get_loaders(data, data_path, batch_size, val_split=0.1):
     # samples instead of reflecting memorised training data.
 
     train_data = data_dict['train_images'][:val_start]  # BUGFIX 1
-    train_labels = data_dict['train_labels'][:val_start]  # BUGFIX 1
+    
+    # BUGFIX 16: Previously, labels were stored with shape [N, 1], but
+    # nn.CrossEntropyLoss() expects a flat 1D tensor of class indices.
 
+    # Change: Flatten train, validation, and test labels with .view(-1)
+    # before constructing the datasets.
+
+    # Effect: Labels now match the shape expected by CrossEntropyLoss,
+    # so training no longer crashes with a multi-target error.
+    
+    train_labels = data_dict['train_labels'][:val_start].view(-1)  # BUGFIX 1 # BUGFIX 16
+    
     val_data = data_dict['train_images'][val_start:]
-    val_labels = data_dict['train_labels'][val_start:]
+    val_labels = data_dict['train_labels'][val_start:].view(-1)  # BUGFIX 16
     
     # BUGFIX 3: Previously, raw pixel tensors in range [0, 255] were passed directly
     # into the network with no normalisation, causing unstable training across all
@@ -67,9 +77,11 @@ def get_loaders(data, data_path, batch_size, val_split=0.1):
     val_data   = (val_data   - mean) / std # BUGFIX 3
     test_data  = (test_data  - mean) / std # BUGFIX 3
     
+    test_labels  = data_dict['test_labels'].view(-1) # BUGFIX 16
+
     train_dataset = TensorDataset(train_data, train_labels)
     val_dataset = TensorDataset(val_data, val_labels)
-    test_dataset = TensorDataset(test_data, data_dict['test_labels']) # BUGFIX 3
+    test_dataset = TensorDataset(test_data, test_labels) # BUGFIX 3 # BUGFIX 16
     
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
