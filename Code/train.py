@@ -5,6 +5,9 @@ MG 6/6/2026
 """
 import json
 
+import random  # FEATURE 1
+import numpy as np  # FEATURE 1
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -15,6 +18,22 @@ from fit import Trainer
 def main():   
     with open("config.json", "r") as f:
         config = json.load(f)
+        
+    # FEATURE 1: Previously, no random seed was set, causing non-deterministic
+    # results across runs with identical hyperparameters, making benchmarks
+    # unreliable and results non-reproducible.
+
+    # Change: Seed PyTorch CPU, CUDA, Python random, and NumPy RNGs from
+    # config["SEED"] at the start of every run.
+
+    # Effect: All runs with the same config and seed produce identical results,
+    # making benchmark comparisons fair and reproducible.
+
+    torch.manual_seed(config.get("SEED", 33)) # FEATURE 1
+    random.seed(config.get("SEED", 33)) # FEATURE 1
+    np.random.seed(config.get("SEED", 33)) # FEATURE 1
+    torch.backends.cudnn.deterministic = True # FEATURE 1
+    torch.backends.cudnn.benchmark = False # FEATURE 1
         
     # BUGFIX 17: Previously, train.py assumed CHANNELS and NUM_CLASSES existed as
     # flat top-level config keys, which breaks once dataset-specific metadata is
