@@ -4,6 +4,7 @@ MAI/IDL SS26 - Final assignment.
 MG 6/6/2026
 """
 import json
+import os  # FEATURE 3
 import time  # FEATURE 2
 import random  # FEATURE 1
 import numpy as np  # FEATURE 1
@@ -109,7 +110,23 @@ def main():
 
     t_start = time.time()  # FEATURE 2
     
-    trainer.fit(train_loader, val_loader, epochs=config["EPOCHS"])
+    # FEATURE 3: Previously, no checkpoint was saved, so the best-epoch weights
+    # were lost after training and could not be reused for transfer learning.
+
+    # Change: Create a checkpoints/ directory and pass a per-run checkpoint path
+    # to fit() so it can persist the best validation-loss weights to disk.
+
+    # Effect: Best model weights are saved and available for transfer learning
+    # on the organs dataset without retraining from scratch.
+
+    os.makedirs("checkpoints", exist_ok=True)  # FEATURE 3    
+    checkpoint_path = f"checkpoints/{config['DATA']}_{config['MODEL']}_best.pth"  # FEATURE 3
+
+    best_val_loss = trainer.fit(
+        train_loader, val_loader,
+        epochs=config["EPOCHS"],
+        checkpoint_path=checkpoint_path  # FEATURE 3
+    )
     
     train_time = time.time() - t_start  # FEATURE 2
     
