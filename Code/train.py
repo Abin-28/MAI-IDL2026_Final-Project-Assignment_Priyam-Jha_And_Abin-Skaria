@@ -4,7 +4,7 @@ MAI/IDL SS26 - Final assignment.
 MG 6/6/2026
 """
 import json
-
+import time  # FEATURE 2
 import random  # FEATURE 1
 import numpy as np  # FEATURE 1
 
@@ -98,7 +98,20 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"])
 
     trainer = Trainer(model, criterion, optimizer, device)
+    
+    # FEATURE 2: Previously, no training runtime was recorded, making it impossible
+    # to quantify computational cost for the Green Initiative report.
+
+    # Change: Record wall-clock time around the full fit() call using time.time().
+
+    # Effect: train_time_s is available for the benchmark results table and
+    # enables fair runtime comparison across all models and datasets.
+
+    t_start = time.time()  # FEATURE 2
+    
     trainer.fit(train_loader, val_loader, epochs=config["EPOCHS"])
+    
+    train_time = time.time() - t_start  # FEATURE 2
     
     trainer.evaluate(test_loader) # BUGFIX 18
 
