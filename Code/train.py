@@ -145,5 +145,21 @@ def main():
     
     trainer.evaluate(test_loader) # BUGFIX 18
 
+    # FEATURE 5: Previously, no per-sample inference latency was measured, making
+    # it impossible to compare model efficiency for the Green Initiative report.
+
+    # Change: Time a full pass over the test set after training and divide by the
+    # total number of samples to get milliseconds per sample.
+
+    # Effect: latency_ms is available for the benchmark table and enables
+    # fair inference speed comparison across all models.
+
+    lat_start = time.time()  # FEATURE 5
+    model.eval()
+    with torch.no_grad():
+        for images, _ in test_loader:
+            model(images.to(device))
+    latency_ms = (time.time() - lat_start) / len(test_loader.dataset) * 1000  # FEATURE 5
+
 if __name__ == "__main__":
     main()
