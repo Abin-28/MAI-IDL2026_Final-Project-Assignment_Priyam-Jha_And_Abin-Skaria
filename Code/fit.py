@@ -15,7 +15,18 @@ class Trainer:
     def train_one_epoch(self, dataloader):
         self.model.train()
         running_loss = 0.0
-        correct, sum = 0, 0
+        
+        # BUGFIX 14: The loop counter was named 'sum', shadowing Python's built-in sum()
+        # function in the local scope — shadowed variables are an explicit silent bug
+        # category for this assignment.
+
+        # Change: Renamed 'sum' to 'total' throughout train_one_epoch, consistent with
+        # the variable name already used correctly in evaluate().
+
+        # Effect: Removes the shadowed built-in and makes train_one_epoch consistent
+        # with evaluate() in naming conventions, improving readability and safety.
+        
+        correct, total = 0, 0  # BUGFIX 14
         
         for images, labels in dataloader:
             images, labels = images.to(self.device), labels.to(self.device)
@@ -40,10 +51,10 @@ class Trainer:
             
             running_loss += loss.item() * images.size(0)
             _, predicted = outputs.max(1)
-            sum += labels.size(0)
+            total += labels.size(0)  # BUGFIX 14
             correct += predicted.eq(labels).sum().item()
             
-        return running_loss / sum, (correct / sum) * 100
+        return running_loss / total, (correct / total) * 100  # BUGFIX 14
 
     def evaluate(self, dataloader):
         self.model.eval()
