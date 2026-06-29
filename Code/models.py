@@ -6,7 +6,17 @@ MG 6/6/2026
 import torch
 import torch.nn as nn
 
-activation_str = "Identity"  # Placeholder for activation function, can be replaced with "ReLU" or others as needed.
+# BUGFIX 5: Previously, activation_str was set to "Identity" which replaces all
+# activation functions in ResNet18 with no-ops, collapsing the entire network
+# into a single linear transformation and preventing any learning.
+
+# Change: Set activation_str to "ReLU" so ResNet18 uses proper non-linear
+# activations as intended by the original architecture.
+
+# Effect: ResNet18 can now learn non-linear features and converge correctly
+# instead of flatining at chance-level accuracy.
+
+activation_str = "ReLU"  # Placeholder for activation function, can be replaced with "ReLU" or others as needed. # BUGFIX 5
 
 
 class VGGBlock(nn.Module):
