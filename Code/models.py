@@ -51,6 +51,18 @@ class VGGBlock(nn.Module):
             layers.append(nn.Conv2d(current_in_channels, out_channels, kernel_size=kernel_size, padding=actual_padding)) # BUGFIX 6
             layers.append(nn.BatchNorm2d(out_channels))
             layers.append(nn.ReLU(inplace=True))
+
+            # BUGFIX 9: Previously, current_in_channels was never updated inside the loop,
+            # so every conv after the first incorrectly used in_channels as input size
+            # instead of out_channels, causing a channel mismatch in multi-conv VGGBlocks.
+
+            # Change: Update current_in_channels to out_channels at the end of each loop
+            # iteration so each subsequent conv receives the correct number of input channels.
+
+            # Effect: All VGGBlocks with num_convs > 1 now build correctly without
+            # channel dimension mismatches.
+
+            current_in_channels = out_channels  # BUGFIX 9
             
         layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
         self.block = nn.Sequential(*layers)
