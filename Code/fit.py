@@ -5,6 +5,7 @@ MG 6/6/2026
 """
 import sys  # FEATURE 8
 import torch
+from torch.optim.lr_scheduler import CosineAnnealingLR  # FEATURE 9
 
 class Trainer:
     def __init__(self, model, criterion, optimizer, device):
@@ -92,6 +93,19 @@ class Trainer:
         # retraining from scratch.
 
         best_val_loss = float("inf")  # FEATURE 8
+
+        # FEATURE 9: Previously, the learning rate remained fixed throughout training,
+        # which can cause the optimiser to overshoot near convergence and settle at a
+        # suboptimal minimum.
+
+        # Change: Added CosineAnnealingLR scheduler initialised once in fit() with
+        # T_max=epochs, and called scheduler.step() after each epoch.
+
+        # Effect: The learning rate follows a cosine decay schedule across the full
+        # training run, helping models converge more stably and reach a better minimum
+        # than a constant learning rate.
+
+        scheduler = CosineAnnealingLR(self.optimizer, T_max=epochs)  # FEATURE 9
         
         for epoch in range(epochs):
             train_loss, train_acc = self.train_one_epoch(train_loader)
@@ -106,6 +120,8 @@ class Trainer:
                   f"Train Loss: {train_loss:.4f} - Train Acc: {train_acc:.2f}% | "
                   f"Val Loss: {val_loss:.4f} - Val Acc: {val_acc:.2f}%",
                   file=sys.stderr, flush=True)  # FEATURE 8
+
+            scheduler.step()  # FEATURE 9
         
         print("-" * 50, file=sys.stderr)  # FEATURE 8
         print("Training Complete!", file=sys.stderr)  # FEATURE 8
