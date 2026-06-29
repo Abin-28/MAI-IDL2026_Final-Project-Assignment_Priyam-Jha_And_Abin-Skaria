@@ -273,3 +273,71 @@ class ResNet18(nn.Module):
         # computation, allowing training and inference to run.
         
         return self.classifier(out) # BUGFIX 7
+
+
+# FEATURE 10: Previously, no lightweight model existed; AlexNet (5.7M params),
+# ResNet18 (11.2M params), and VGG16 (12.6M params) are overparameterised for
+# 64x64 embedded medical inference.
+
+# Change: Added DepthwiseSepConv helper and GreenNet using depthwise separable convs,
+# max 128 channels, and AdaptiveAvgPool2d(1) head — ~13.9k parameters total.
+
+# Effect: Now we can drop-in efficient model via getattr(models, 'GreenNet'); constructor signature
+# identical to AlexNet, VGG16, and ResNet18, no changes needed in train.py or runner.py.
+
+
+class DepthwiseSepConv(nn.Module):
+    """Depthwise separable convolution block (Howard et al., 2017).
+    Replaces a standard Conv2d(Cin, Cout, 3) with:
+      depthwise:  Conv2d(Cin,  Cin,  3, groups=Cin)  — spatial filtering per channel
+      pointwise:  Conv2d(Cin,  Cout, 1)              — cross-channel mixing
+    This reduces MACs from Cin*Cout*9 to Cin*9 + Cin*Cout, roughly 9x fewer for large Cout.
+    """
+    def __init__(self, in_channels, out_channels, stride=1, activation=nn.ReLU):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=stride,
+                      padding=1, groups=in_channels, bias=False),
+            nn.BatchNorm2d(in_channels),
+            activation(inplace=True),
+            nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            activation(inplace=True),
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
+
+class GreenNet(nn.Module):
+    """Efficient diagnostic CNN — Phase 2 Green Initiative.
+    ~13.9k parameters vs AlexNet 5.7M / ResNet18 11.2M / VGG16 12.6M.
+    Input: (C, 64, 64) — identical to AlexNet, VGG16, and ResNet18.
+    """
+    def __init__(self, in_channels=3, num_classes=8, drop_rate=0.4, activation="ReLU", **kwargs):
+        super().__init__()
+        act = getattr(nn, activation)
+
+        self.features = nn.Sequential(
+        # Stage 0: standard conv stem
+        nn.Conv2d(in_channels, 16, kernel_size=3, padding=1, bias=False),
+        nn.BatchNorm2d(16),
+        act(inplace=True),
+
+        nn.MaxPool2d(kernel_size=2, stride=2),  # explicit pooling after stem
+        # Stages 1–3: depthwise separable blocks
+        DepthwiseSepConv(16,  32,  stride=2, activation=act),  # 32 → 16
+        DepthwiseSepConv(32,  64,  stride=2, activation=act),  # 16 →  8
+        DepthwiseSepConv(64,  128, stride=2, activation=act),  #  8 →  4
+        )
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.classifier = nn.Sequential(
+            nn.Dropout(drop_rate),
+            nn.Linear(128, num_classes),
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.pool(x)
+        x = x.flatten(1)
+        return self.classifier(x)  # FEATURE 10
