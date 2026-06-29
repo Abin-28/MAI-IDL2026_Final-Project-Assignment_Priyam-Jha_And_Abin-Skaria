@@ -2,6 +2,8 @@
 
 Welcome to the official repository template for the **Introduction to Deep Learning (IDL) 2026 Final Assignment**.
 
+#### *Team Members:* Priyam Jha (10013079), Abin Skaria (10013968)
+
 ### Overview
 
 This repository contains the volatile, recovered remnants of a broken machine learning pipeline. Your mission is to audit the codebase, stabilize the system, optimize its computational footprint, and successfully deploy models across all target datasets.
