@@ -15,7 +15,20 @@ from fit import Trainer
 def main():   
     with open("config.json", "r") as f:
         config = json.load(f)
+        
+    # BUGFIX 17: Previously, train.py assumed CHANNELS and NUM_CLASSES existed as
+    # flat top-level config keys, which breaks once dataset-specific metadata is
+    # grouped under the nested DATASETS structure in config.json.
+    #
+    # Change: Read the selected dataset entry once using config["DATA"], then pull
+    # CHANNELS and NUM_CLASSES from that dataset-specific block instead of expecting
+    # them at the top level.
+    #
+    # Effect: train.py now works correctly with a single structured config file,
+    # allowing dataset-specific model settings to be selected without editing source code.
 
+    dataset_cfg = config["DATASETS"][config["DATA"]]  # BUGFIX 17
+ 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training executing on device: {device}")
 
@@ -43,8 +56,8 @@ def main():
     # fully configurable via the config file.
     
     model = model_class(
-    in_channels=config["CHANNELS"],
-    num_classes=config["NUM_CLASSES"],
+    in_channels=dataset_cfg["CHANNELS"], # BUGFIX 17
+    num_classes=dataset_cfg["NUM_CLASSES"], # BUGFIX 17
     drop_rate=config["DROP_RATE"], # BUGFIX 10
     activation=config["ACTIVATION"] # BUGFIX 11
     ).to(device) 
