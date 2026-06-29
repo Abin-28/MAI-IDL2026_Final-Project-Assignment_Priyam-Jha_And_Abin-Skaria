@@ -16,7 +16,12 @@ import torch.nn as nn
 # Effect: ResNet18 can now learn non-linear features and converge correctly
 # instead of flatining at chance-level accuracy.
 
-activation_str = "ReLU"  # Placeholder for activation function, can be replaced with "ReLU" or others as needed. # BUGFIX 5
+# BUGFIX 8: This global variable is also a production-ready violation — hardcoding
+# it here means the activation cannot be changed via config without editing source code.
+# The variable activation_str has been moved inside ResNet18.__init__ as kwargs.get("activation", "ReLU").
+# the ResNet18.__init__ has the other part of this fix.
+
+# activation_str = "ReLU"  # Placeholder for activation function, can be replaced with "ReLU" or others as needed. # BUGFIX 5 # BUGFIX 8
 
 
 class VGGBlock(nn.Module):
@@ -175,6 +180,17 @@ class ResNet18(nn.Module):
     def __init__(self, in_channels, num_classes, **kwargs):
         super().__init__()
 
+        # BUGFIX 8: Previously, activation_str was a global variable hardcoded in the
+        # module, requiring manual edits to models.py to change the activation function.
+
+        # Change: Read activation_str from kwargs inside ResNet18.__init__ with "ReLU"
+        # as the default, so it can be set per-run via the config file.
+
+        # Effect: The activation function is now fully config-driven with no hardcoded
+        # values in the source file, satisfying the modularity requirement.
+
+        activation_str = kwargs.get("activation", "ReLU") # BUGFIX 8
+        
         activation = getattr(nn, activation_str)
 
         self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
