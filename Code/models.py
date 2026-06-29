@@ -152,7 +152,18 @@ class AlexNet(nn.Module):
         
         self.classifier = nn.Sequential(
             nn.Dropout(p=drop_rate),
-            nn.Linear(2048, 1024),
+            
+            # BUGFIX 15: Previously, the first AlexNet classifier layer expected 2048 input
+            # features, but the actual flattened output from self.features contained 3072
+            # values per sample, causing a matrix shape mismatch at the classifier.
+
+            # Change: Updated the first Linear layer input size from 2048 to 3072 so it
+            # matches the true flattened feature size produced by the convolution stack.
+
+            # Effect: AlexNet forward pass now runs correctly end-to-end without crashing
+            # at the classifier, and training can proceed normally.
+
+            nn.Linear(3072, 1024),  # BUGFIX 15
             nn.ReLU(inplace=True),
             nn.Dropout(p=drop_rate),
             nn.Linear(1024, 1024),
