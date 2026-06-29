@@ -20,6 +20,18 @@ class Trainer:
         for images, labels in dataloader:
             images, labels = images.to(self.device), labels.to(self.device)
             
+            # BUGFIX 13: Previously, optimizer.zero_grad() was missing before the forward pass,
+            # causing gradients to accumulate across all batches instead of being reset each
+            # iteration, leading to incorrect parameter updates and erratic training behaviour.
+
+            # Change: Added self.optimizer.zero_grad() at the start of each training iteration,
+            # before the forward pass, so each batch computes clean, independent gradients.
+
+            # Effect: Each parameter update is now based only on the current batch's gradients,
+            # preventing gradient explosion and allowing all three models to train correctly.
+
+            self.optimizer.zero_grad()  # BUGFIX 13
+            
             outputs = self.model(images)
             loss = self.criterion(outputs, labels)
             
