@@ -210,4 +210,14 @@ class ResNet18(nn.Module):
         out = self.stage4(out)
         out = self.avgpool(out)
         out = torch.flatten(out, 1)
-        self.classifier(out)
+
+        # BUGFIX 7: Previously, the final classifier output was computed but never
+        # returned — forward() implicitly returned None, crashing every training step.
+
+        # Change: Added return so the computed logits tensor is passed back to the
+        # caller, matching the forward() pattern of AlexNet and VGG16.
+
+        # Effect: ResNet18 forward pass now correctly returns logits for loss
+        # computation, allowing training and inference to run.
+        
+        return self.classifier(out) # BUGFIX 7
