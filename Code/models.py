@@ -31,7 +31,19 @@ class VGGBlock(nn.Module):
         for i in range(num_convs):
             is_config_c_tail = (num_convs == 3 and i == 2)
             kernel_size = 1 if is_config_c_tail else 3
-            layers.append(nn.Conv2d(current_in_channels, out_channels, kernel_size=kernel_size, padding=padding))
+            
+            # BUGFIX 6: Previously, padding=1 was applied to all convolutions including
+            # 1x1 kernels, incorrectly expanding feature map dimensions for the config-C
+            # tail convolution in 3-conv VGGBlocks.
+
+            # Change: Set padding to 0 when kernel_size is 1, and use the block-level
+            # padding value only for 3x3 kernels.
+
+            # Effect: Feature map spatial dimensions are correctly preserved throughout
+            # all VGGBlocks, preventing shape corruption in VGG16.
+
+            actual_padding = 0 if kernel_size == 1 else padding # BUGFIX 6
+            layers.append(nn.Conv2d(current_in_channels, out_channels, kernel_size=kernel_size, padding=actual_padding)) # BUGFIX 6
             layers.append(nn.BatchNorm2d(out_channels))
             layers.append(nn.ReLU(inplace=True))
             
