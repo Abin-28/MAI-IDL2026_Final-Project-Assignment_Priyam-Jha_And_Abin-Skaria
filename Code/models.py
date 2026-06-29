@@ -66,6 +66,17 @@ class AlexNet(nn.Module):
         super().__init__()
 
         drop_rate = kwargs.get("drop_rate", 0.5)
+
+        # BUGFIX 4: Previously, AlexNet's output layer was hardcoded to 11 classes,
+        # making it incompatible with any dataset that does not have exactly 11 classes.
+
+        # Change: Extracted num_classes from kwargs (defaulting to 11 as a safe fallback)
+        # and pass it to the final Linear layer, matching how VGG16 and ResNet18 work.
+
+        # Effect: AlexNet's output dimension now matches the target dataset's class count,
+        # making it compatible with all four datasets through the config system.
+
+        num_classes = kwargs.get("num_classes", 11)  # BUGFIX 4
         
         self.features = nn.Sequential(
             nn.Conv2d(3, 48, kernel_size=7, stride=2, padding=3),
@@ -94,7 +105,7 @@ class AlexNet(nn.Module):
             nn.Dropout(p=drop_rate),
             nn.Linear(1024, 1024),
             nn.ReLU(inplace=True),
-            nn.Linear(1024, 11),
+            nn.Linear(1024, num_classes),  # BUGFIX 4
         )
 
     def forward(self, x):
