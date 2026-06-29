@@ -121,12 +121,25 @@ def main():
 
     os.makedirs("checkpoints", exist_ok=True)  # FEATURE 3    
     checkpoint_path = f"checkpoints/{config['DATA']}_{config['MODEL']}_best.pth"  # FEATURE 3
+    
+    # FEATURE 4: Previously, no peak GPU memory metric existed, making it
+    # impossible to quantify model memory efficiency for the Green Initiative report.
+
+    # Change: Reset per-run peak memory stats before fit(), then read
+    # max_memory_allocated() immediately after to capture each model in isolation.
+
+    # Effect: peak_mem_mb reflects only the current model's training memory,
+    # enabling fair memory comparison across all four models.
+
+    torch.cuda.reset_peak_memory_stats(device)  # FEATURE 4
 
     best_val_loss = trainer.fit(
         train_loader, val_loader,
         epochs=config["EPOCHS"],
         checkpoint_path=checkpoint_path  # FEATURE 3
     )
+    
+    peak_mem_mb = torch.cuda.max_memory_allocated(device) / 1024**2  # FEATURE 4
     
     train_time = time.time() - t_start  # FEATURE 2
     
