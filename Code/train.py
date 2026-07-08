@@ -32,9 +32,9 @@ def main(config=None):  # FEATURE 7
     # Effect: All runs with the same config and seed produce identical results,
     # making benchmark comparisons fair and reproducible.
 
-    torch.manual_seed(config.get("SEED", 33)) # FEATURE 1
-    random.seed(config.get("SEED", 33)) # FEATURE 1
-    np.random.seed(config.get("SEED", 33)) # FEATURE 1
+    torch.manual_seed(config.get("SEED")) # FEATURE 1
+    random.seed(config.get("SEED")) # FEATURE 1
+    np.random.seed(config.get("SEED")) # FEATURE 1
     torch.backends.cudnn.deterministic = True # FEATURE 1
     torch.backends.cudnn.benchmark = False # FEATURE 1
         
@@ -128,9 +128,11 @@ def main(config=None):  # FEATURE 7
     # impossible to quantify model memory efficiency for the Green Initiative report.
 
     # Change: Reset per-run peak memory stats before fit(), then read
-    # max_memory_allocated() immediately after to capture each model in isolation.
+    # max_memory_allocated() immediately after to capture each model's training
+    # footprint in isolation. Renamed to peak_mem_train_mb (see FEATURE 11) since
+    # a second, inference-only measurement is now taken later in the same run.
 
-    # Effect: peak_mem_mb reflects only the current model's training memory,
+    # Effect: peak_mem_train_mb reflects only the current model's training memory,
     # enabling fair memory comparison across all four models.
 
     torch.cuda.reset_peak_memory_stats(device)  # FEATURE 4
@@ -141,11 +143,27 @@ def main(config=None):  # FEATURE 7
         checkpoint_path=checkpoint_path  # FEATURE 3
     )
     
-    peak_mem_mb = torch.cuda.max_memory_allocated(device) / 1024**2  # FEATURE 4
+    peak_mem_train_mb = torch.cuda.max_memory_allocated(device) / 1024**2  # FEATURE 4
     
     train_time = time.time() - t_start  # FEATURE 2
     
     test_loss, test_acc = trainer.evaluate(test_loader)  # BUGFIX 18 # FEATURE 7
+
+    # FEATURE 11: Previously, peak_mem_mb only ever captured training-phase memory,
+    # leaving inference memory footprint completely unmeasured — a gap against the
+    # Green Initiative requirement to track peak memory in both training AND
+    # inference phases.
+
+    # Change: Reset peak memory stats a second time right before the inference/
+    # latency loop below, then read max_memory_allocated() immediately after it
+    # completes, isolating the inference-only footprint from whatever memory
+    # training already allocated.
+
+    # Effect: peak_mem_inference_mb now reports the model's memory footprint
+    # during inference alone, independent of training-time activation/optimizer
+    # memory, satisfying the dual training+inference memory tracking requirement.
+
+    torch.cuda.reset_peak_memory_stats(device)  # FEATURE 11
 
     # FEATURE 5: Previously, no per-sample inference latency was measured, making
     # it impossible to compare model efficiency for the Green Initiative report.
@@ -162,6 +180,8 @@ def main(config=None):  # FEATURE 7
         for images, _ in test_loader:
             model(images.to(device))
     latency_ms = (time.time() - lat_start) / len(test_loader.dataset) * 1000  # FEATURE 5
+
+    peak_mem_inference_mb = torch.cuda.max_memory_allocated(device) / 1024**2  # FEATURE 11
 
     # FEATURE 6: Previously, only accuracy was reported, which is insufficient for
     # the REPORT.md benchmark table that requires precision, recall, and macro F1.
@@ -187,7 +207,8 @@ def main(config=None):  # FEATURE 7
         f"[RESULT] dataset={config['DATA']} | model={config['MODEL']} | "
         f"test_acc={test_acc/100:.4f} | test_f1={test_f1:.4f} | "
         f"val_loss={best_val_loss:.4f} | train_time={train_time:.2f}s | "
-        f"latency={latency_ms:.4f} ms/sample"
+        f"latency={latency_ms:.4f} ms/sample | "
+        f"peak_mem_train={peak_mem_train_mb:.2f}MB | peak_mem_inference={peak_mem_inference_mb:.2f}MB"
     )
 
     # FEATURE 7: Previously, main() had no return value, so runner.py could not
@@ -208,7 +229,8 @@ def main(config=None):  # FEATURE 7
         "latency_ms":      round(latency_ms, 4),
         "test_precision":  round(test_precision, 4),
         "test_recall":     round(test_recall, 4),
-        "peak_mem_mb":     round(peak_mem_mb, 2),
+        "peak_mem_train_mb":     round(peak_mem_train_mb, 2),      # FEATURE 4
+        "peak_mem_inference_mb": round(peak_mem_inference_mb, 2),  # FEATURE 11
         "checkpoint_path": checkpoint_path,    # FEATURE 3
     }
 
