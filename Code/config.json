@@ -1,0 +1,29 @@
+{
+  "DATA": "cells",
+  "MODEL": "AlexNet",
+  "DATA_PATH": "../data",
+  "BATCH_SIZE": 32,
+  "LEARNING_RATE": 0.001,
+  "EPOCHS": 20,
+  "DROP_RATE": 0.4,
+  "ACTIVATION": "ReLU",
+  "SEED": 33,
+  "MODELS": [
+    "AlexNet",
+    "VGG16",
+    "ResNet18",
+    "GreenNet"
+  ],
+  "DATASETS": {
+    "chest":   { "CHANNELS": 1, "NUM_CLASSES": 2  },
+    "cells":   { "CHANNELS": 3, "NUM_CLASSES": 8  },
+    "lesions": { "CHANNELS": 3, "NUM_CLASSES": 7  },
+    "orgs":    { "CHANNELS": 1, "NUM_CLASSES": 11 }
+  },
+  "TRANSFER_DATASET": "organs",
+  "TRANSFER_DATASET_CFG": { "CHANNELS": 1, "NUM_CLASSES": 11 },
+  "TRANSFER_LEARNING_RATE": 0.01,
+  "TRANSFER_DROP_RATE": 0.4,
+  "TRANSFER_BATCH_SIZE": 16,
+  "TRANSFER_EPOCHS": 20
+}
